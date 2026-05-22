@@ -6,17 +6,27 @@ public class Main {
         Config cfg = Config.fromArgs(args);
         System.out.println("Loading: " + cfg.csvPath);
         TimeSeriesDataset ds = TimeSeriesDataset.fromCsv(Path.of(cfg.csvPath), cfg.mPreviousValues, cfg.nPreviousDays);
-        ds.shuffleAndSplit(cfg.trainRatio, cfg.seed);
-        System.out.printf("Examples: train=%d test=%d features=%d%n", ds.trainX.length, ds.testX.length, ds.featureNames.length);
-        System.out.println("Features: " + String.join(", ", ds.featureNames));
+        for (int r = 0; r < cfg.runs; r++) {
+            cfg.seed = 42 + r;
 
-        StructureBasedGE ge = new StructureBasedGE(cfg, ds.featureNames.length);
-        Individual best = ge.run(ds.trainX, ds.trainY, ds.testX, ds.testY);
+            long startTime = System.currentTimeMillis();
 
-        System.out.println("\nBest expression:");
-        System.out.println(best.tree.toInfix());
-        System.out.printf(Locale.US, "Train RMSE: %.6f%n", best.trainRmse);
-        System.out.printf(Locale.US, "Test RMSE : %.6f%n", best.testRmse);
-        System.out.printf(Locale.US, "Tree nodes: %d depth: %d signature: %s%n", best.tree.countNodes(), best.tree.depth(), best.tree.signature());
+            ds.shuffleAndSplit(cfg.trainRatio, cfg.seed);
+            StructureBasedGE ge = new StructureBasedGE(cfg, ds.featureNames.length);
+            Individual best = ge.run(ds.trainX, ds.trainY, ds.testX, ds.testY);
+
+            long endTime = System.currentTimeMillis();
+            long timeTaken = endTime - startTime;
+
+            System.out.printf(Locale.US,
+                    "Seed %d | EndRunBestFitness %.6f | EndRunBestSolution %s | EndRunDepth %d | TimeTakenMs %d | TestRMSE %.6f%n",
+                    cfg.seed,
+                    best.trainRmse,
+                    best.tree.toInfix(),
+                    best.tree.depth(),
+                    timeTaken,
+                    best.testRmse
+            );
+        }
     }
 }

@@ -41,13 +41,33 @@ public class StructureBasedGE {
             if (converged) injectDiverseRandoms(next, (int)(cfg.populationSize * cfg.injectionFraction));
             pop = next;
             evaluate(pop, trainX, trainY, testX, testY);
+            double avgFitness = pop.stream().mapToDouble(i -> i.trainRmse).average().orElse(0);
+            double avgHits = pop.stream().mapToInt(i -> i.trainHits).average().orElse(0);
+            int bestHits = pop.stream().mapToInt(i -> i.trainHits).max().orElse(0);
+
+            int bestComplexity = pop.stream().mapToInt(i -> i.tree.countNodes()).min().orElse(0);
+            double avgComplexity = pop.stream().mapToInt(i -> i.tree.countNodes()).average().orElse(0);
+
+            long uniqueIndividuals = pop.stream().map(i -> i.tree.toInfix()).distinct().count();
+
+            double variety = 100.0 * uniqueIndividuals / pop.size();
             Individual genBest = best(pop);
             if (genBest.trainRmse < best.trainRmse) best = genBest.copy();
 
             if (gen % 10 == 0 || gen == 1) {
                 System.out.printf(Locale.US,
-                    "Gen %3d | best train %.6f | test %.6f | structural diversity %.3f | mutation %.3f | nodes %d%n",
-                    gen, best.trainRmse, best.testRmse, diversity, mutationRate, best.tree.countNodes());
+                        "Gen %3d | BestFitness %.6f | AvgFitness %.6f | BestHits %d | AvgHits %.2f | BestComplexity %d | AvgComplexity %.2f | Variety %.2f%% | StructuralDiversity %.3f | MutationRate %.3f%n",
+                        gen,
+                        genBest.trainRmse,
+                        avgFitness,
+                        bestHits,
+                        avgHits,
+                        bestComplexity,
+                        avgComplexity,
+                        variety,
+                        diversity,
+                        mutationRate
+                );
             }
         }
         return best;
@@ -70,6 +90,8 @@ public class StructureBasedGE {
             ind.tree = mapper.map(ind.genome);
             ind.trainRmse = rmse(ind.tree, trainX, trainY);
             ind.testRmse = rmse(ind.tree, testX, testY);
+            ind.trainHits = hits(ind.tree, trainX, trainY);
+            ind.testHits = hits(ind.tree, testX, testY);
         }
         annotateStructuralNovelty(pop);
     }
@@ -84,6 +106,20 @@ public class StructureBasedGE {
             sum += e * e;
         }
         return Math.sqrt(sum / y.length);
+    }
+
+    private int hits(Node tree, double[][] X, double[] y) {
+        int count = 0;
+        for (int i = 0; i < y.length; i++) {
+            double pred = tree.eval(X[i]);
+            if (!Double.isFinite(pred)) pred = 0.0;
+            pred = Math.max(-10, Math.min(10, pred));
+
+            if (Math.abs(pred - y[i]) <= cfg.hitBound) {
+                count++;
+            }
+        }
+        return count;
     }
 
     /**

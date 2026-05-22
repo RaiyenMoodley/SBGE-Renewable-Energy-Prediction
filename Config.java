@@ -3,20 +3,20 @@ public class Config {
     public int nPreviousDays = 7;
     public int mPreviousValues = 8;
     public int populationSize = 250;
-    public int generations = 120;
+    public int generations = 100;
     public int genotypeLength = 120;
     public int tournamentSize = 5;
     public int maxDepth = 8;
     public double crossoverRate = 0.85;
     public double baseMutationRate = 0.04;
     public double trainRatio = 0.70;
-    public double elitismFraction = 0.04;
     public long seed = 42;
-
-    // Structure-guidance parameters
+    public double hitBound = 0.005;
+    public double elitismFraction = 0.02;
+    public double injectionFraction = 0.10;
     public double noveltyWeight = 0.18;          // higher = stronger preference for structurally novel trees
     public double convergenceThreshold = 0.22;   // if population diversity drops below this, mutation/injection increases
-    public double injectionFraction = 0.08;      // fraction replaced by diverse random individuals under convergence
+    public int runs = 20;
 
     public static Config fromArgs(String[] args) {
         Config c = new Config();
