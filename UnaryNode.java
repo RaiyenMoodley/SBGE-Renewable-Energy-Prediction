@@ -1,4 +1,3 @@
-
 public class UnaryNode implements Node {
     public final String op;
     public final Node child;

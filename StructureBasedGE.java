@@ -1,19 +1,20 @@
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.*;
 
 public class StructureBasedGE {
     private final Config cfg;
-    private final int featureCount;
     private final Random rng;
     private final Mapper mapper;
 
     public StructureBasedGE(Config cfg, int featureCount) {
         this.cfg = cfg;
-        this.featureCount = featureCount;
         this.rng = new Random(cfg.seed);
         this.mapper = new Mapper(featureCount, cfg.maxDepth);
     }
 
-    public Individual run(double[][] trainX, double[] trainY, double[][] testX, double[] testY) {
+    public Individual run(double[][] trainX, double[] trainY, double[][] testX, double[] testY, PrintWriter genWriter) {
         List<Individual> pop = initialPopulation();
         evaluate(pop, trainX, trainY, testX, testY);
         Individual best = best(pop).copy();
@@ -51,8 +52,24 @@ public class StructureBasedGE {
             long uniqueIndividuals = pop.stream().map(i -> i.tree.toInfix()).distinct().count();
 
             double variety = 100.0 * uniqueIndividuals / pop.size();
+
             Individual genBest = best(pop);
             if (genBest.trainRmse < best.trainRmse) best = genBest.copy();
+
+            genWriter.printf(Locale.US,
+                    "%d,%d,%.6f,%.6f,%d,%.2f,%d,%.2f,%.2f,%.3f,%.3f%n",
+                    cfg.seed,
+                    gen,
+                    genBest.trainRmse,
+                    avgFitness,
+                    bestHits,
+                    avgHits,
+                    bestComplexity,
+                    avgComplexity,
+                    variety,
+                    diversity,
+                    mutationRate
+            );
 
             if (gen % 10 == 0 || gen == 1) {
                 System.out.printf(Locale.US,
@@ -122,11 +139,6 @@ public class StructureBasedGE {
         return count;
     }
 
-    /**
-     * This is the core structure-based part: the population is analysed by tree signatures.
-     * Individuals in crowded/duplicated structures get low novelty, while unusual structures get high novelty.
-     * Selection then minimises RMSE - noveltyWeight * novelty, so structure directly guides search.
-     */
     private double annotateStructuralNovelty(List<Individual> pop) {
         Map<String, Integer> counts = new HashMap<>();
         for (Individual ind : pop) counts.merge(ind.tree.signature(), 1, Integer::sum);
@@ -156,7 +168,6 @@ public class StructureBasedGE {
         for (int i = 0; i < cfg.tournamentSize * 2; i++) {
             Individual cand = pop.get(rng.nextInt(pop.size()));
             double dist = signatureDistance(p1.tree.signature(), cand.tree.signature());
-            // Prefer useful parents that are not structural clones, but not completely unrelated either.
             double targetDistance = 0.45;
             double score = cand.trainRmse + Math.abs(dist - targetDistance) * cand.trainRmse;
             if (best == null || score < bestScore) { best = cand; bestScore = score; }
