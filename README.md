@@ -4,4 +4,4 @@
 
 1. javac *.java
 
-2. java Evolution
+2. java Main
